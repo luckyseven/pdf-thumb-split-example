@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PDF Preview&Split Example</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+    <style>
+        h1 {
+            margin-bottom: 30px;
+        }
+        h4 {
+            color: #777;
+            margin: 20px 0;
+        }
+        #previews {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        #previews li {
+            float: left;
+            width: 200px;
+            padding: 10px;
+            margin: 20px;
+            border: 1px solid black;
+
+        }
+        li.selected {
+            background-color: goldenrod;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h1>PDF Preview&Split Example</h1>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <h4>1 - Upload your file</h4>
+                <form id="uploadForm" method="post" action="/upload">
+                    <div class="form-group">
+                        <input type="file" class="form-control" id="pdf" placeholder="PDF">
+                        <small class="form-text text-muted">Select a PDF file</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="uploadBtn">Upload</button>
+                </form>
+            </div>
+            <div class="col-12">
+                <form id="splitForm" method="post" action="/split">
+                    <h4>2 - Select first page(s) and split</h4>
+                    <ul id="previews" class="clearfix">
+                    </ul>
+                    <button type="submit" class="btn btn-primary" id="splitBtn">Split</button>
+                </form>
+            </div>
+            <div class="col-12">
+                <h4>3 - Download your files</h4>
+                <ul id="downloads" class="clearfix"></ul>
+            </div>
+        </div>
+    </div>
+    <script
+            src="https://code.jquery.com/jquery-3.2.1.min.js"
+            integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+    <script>
+        $(document).ready(() => {
+            let firstPages = [];
+            let currentFile = '';
+            $("#uploadForm").submit((event) => {
+                let file_data = $('#pdf').prop('files')[0];
+                let form_data = new FormData();
+                form_data.append('pdf', file_data);
+                $.ajax({
+                    url: $(event.currentTarget).attr('action'),
+                    dataType: 'json',
+                    cache: false,
+                    contentType: false,
+                    processData: false,
+                    data: form_data,
+                    type: 'post',
+                    success: response => {
+                        firstPages = [];
+                        $("#previews").empty();
+                        currentFile = response.filename;
+                        for (let i = 0; i < response.pages; i++) {
+                            let li  = $(document.createElement('li'));
+                            let img = $(document.createElement('img'));
+                            li.data('page', i)
+                            img.attr('src', '/thumb/' + response.filename + '.pdf/' + i).attr('width', '100%');
+                            li.append(img);
+                            $("#previews").append(li);
+                        }
+                        console.log(response);
+                    }
+                });
+                event.preventDefault();
+            });
+            $("#splitForm").submit((event) => {
+                $.post('/split/' + currentFile, { pages: firstPages.join('-')}).then(response => {
+                    $("#downloads").empty();
+                    for (let i = 0; i < response.length; i++) {
+                        let li  = $(document.createElement('li'));
+                        let link  = $(document.createElement('a'));
+                        link.attr('href', response[i]).html(response[i]);
+                        li.append(link);
+                        $("#downloads").append(li);
+                    }
+                });
+                event.preventDefault();
+            });
+            $("#previews").on('click', 'li', (event) => {
+                let selectedPage = $(event.currentTarget).data('page');
+                if (firstPages.indexOf(selectedPage) > -1) {
+                    firstPages.splice(firstPages.indexOf(selectedPage),1);
+                    $(event.currentTarget).removeClass('selected');
+                } else {
+                    firstPages.push(selectedPage);
+                    $(event.currentTarget).addClass('selected');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
